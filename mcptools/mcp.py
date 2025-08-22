@@ -42,7 +42,7 @@ async def call_tools(inputstr :str , filepath :str):  # 创建异步主函数
     tools = await client.get_tools()
 
     # Bind tools to model
-    model_with_tools = model.bind_tools(tools)
+    model_with_tools = llm.bind_tools(tools)
 
     # Create ToolNode
     tool_node = ToolNode(tools)
@@ -106,5 +106,6 @@ def save_upload_file(upload_file: UploadFile, sessionId: UUID) -> str:
 
 # 启动事件循环
 if __name__ == "__main__":
+
 
     print("Weather Response:")
