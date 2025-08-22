@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>DeepSeek 流式对话</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        #chat-box {
+            height: 500px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+            background: #fafafa;
+        }
+        .user-msg {
+            background: #e3f2fd;
+            padding: 10px;
+            border-radius: 10px;
+            margin: 10px 0;
+            max-width: 80%;
+            align-self: flex-end;
+        }
+        .bot-msg {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 10px;
+            margin: 10px 0;
+            max-width: 80%;
+            align-self: flex-start;
+        }
+        .msg-container {
+            display: flex;
+            flex-direction: column;
+        }
+        #input-area {
+            display: flex;
+            gap: 10px;
+        }
+        #user-input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            font-size: 16px;
+        }
+        #send-btn {
+            padding: 10px 20px;
+            background: #3f51b5;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+        }
+        .typing-indicator {
+            display: none;
+            color: #777;
+            font-style: italic;
+        }
+        #back-btn {
+            background: white;
+            color: #4a5568;
+            border: 2px solid #e2e8f0;
+            min-width: 100px;
+        }
+
+        #back-btn:hover {
+            background: #f8fafc;
+            border-color: #cbd5e0;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <h1>DeepSeek 流式对话演示</h1>
+    <div id="chat-box" class="msg-container"></div>
+
+    <div id="input-area">
+        <input type="text" id="user-input" placeholder="输入您的问题..." autocomplete="off">
+        <button id="send-btn">发送</button>
+                        <button id="back-btn" class="chat-btn">返回</button>
+
+    </div>
+    <div id="typing" class="typing-indicator">DeepSeek 正在思考...</div>
+
+    <script>
+        const chatBox = document.getElementById('chat-box');
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        const typingIndicator = document.getElementById('typing');
+
+        function appendMessage(sender, message, isUser = false) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = isUser ? 'user-msg' : 'bot-msg';
+            msgDiv.textContent = `${sender}: ${message}`;
+            chatBox.appendChild(msgDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+            return msgDiv;
+        }
+
+        function updateBotMessage(newText) {
+            const lastMsg = chatBox.lastChild;
+            if (lastMsg && lastMsg.className === 'bot-msg') {
+                lastMsg.textContent = `DeepSeek: ${newText}`;
+            } else {
+                appendMessage('DeepSeek', newText, false);
+            }
+        }
+
+        async function sendMessage() {
+            const message = userInput.value.trim();
+            if (!message) return;
+
+            // 显示用户消息
+            appendMessage('您', message, true);
+            userInput.value = '';
+            sendBtn.disabled = true;
+
+            // 显示正在输入状态
+            typingIndicator.style.display = 'block';
+
+            try {
+                // 创建新消息容器
+                const botMsg = appendMessage('DeepSeek', '', false);
+
+                // 建立SSE连接
+                const eventSource = new EventSource(`/api/chat_ctx?question=${encodeURIComponent(message)}`);
+
+                eventSource.onmessage = (event) => {
+                    typingIndicator.style.display = 'none';
+
+                    if (event.data === '{"end": true}') {
+                        eventSource.close();
+                        sendBtn.disabled = false;
+                        return;
+                    }
+
+                    // 逐字追加内容
+                    botMsg.textContent += event.data;
+                    chatBox.scrollTop = chatBox.scrollHeight;
+                };
+
+                eventSource.onerror = () => {
+                    eventSource.close();
+                    typingIndicator.style.display = 'none';
+                    sendBtn.disabled = false;
+                };
+
+            } catch (error) {
+                console.error('请求失败:', error);
+                appendMessage('系统', '对话服务异常，请重试', false);
+                typingIndicator.style.display = 'none';
+                sendBtn.disabled = false;
+            }
+        }
+        // 添加返回按钮功能
+        document.getElementById('back-btn').addEventListener('click', function() {
+            window.location.href = '/profile';
+        });
+        // 事件监听
+        sendBtn.addEventListener('click', sendMessage);
+        userInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+    </script>
+</body>
+</html>
