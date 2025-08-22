@@ -1,0 +1,23 @@
+{
+    "database": {
+        "host": "localhost",
+        "port": 5432,
+        "name": "postgres0",
+        "user": "username",
+        "password": "password",
+        "collection_name": "knowledge_collection",
+        "min_connections": 1,
+        "max_connections": 10
+    },
+    "model": {
+        "cache_path": "C:\\agentTools\\localmodel",
+        "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
+        "rerank_model": "BAAI/bge-reranker-base"
+    },
+    "app": {
+        "host": "0.0.0.0",
+        "port": 4000,
+        "debug": true,
+        "upload_dir": "uploads"
+    }
+}
