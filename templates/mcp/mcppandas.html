@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>MCP处理pandas</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input[type="text"], input[type="number"], textarea, select {
+            width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px;
+        }
+        .tab { overflow: hidden; border: 1px solid #ccc; background-color: #f1f1f1; }
+        .tab button { background-color: inherit; float: left; border: none; outline: none; cursor: pointer; padding: 14px 16px; transition: 0.3s; }
+        .tab button:hover { background-color: #ddd; }
+        .tab button.active { background-color: #ccc; }
+        .tabcontent { display: none; padding: 20px; border: 1px solid #ccc; border-top: none; }
+        .result { margin-top: 20px; padding: 15px; border-radius: 5px; }
+        .success { background-color: #dff0d8; color: #3c763d; }
+        .error { background-color: #f2dede; color: #a94442; }
+         /* 新增样式 */
+        .query-form {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .query-form .full-width {
+            grid-column: span 2;
+        }
+        .result-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        .result-table th, .result-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        .result-table th {
+            background-color: #f2f2f2;
+        }
+        .score-cell {
+            text-align: right;
+        }
+                #back-btn {
+            background: white;
+            color: #4a5568;
+            border: 2px solid #e2e8f0;
+            min-width: 100px;
+        }
+
+        #back-btn:hover {
+            background: #f8fafc;
+            border-color: #cbd5e0;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>MCP Pandas</h1>
+
+        <div class="tab">
+            <button class="tablinks" onclick="openTab(event, 'fileTab')">文件上传</button>
+        </div>
+
+        <div id="fileTab" class="tabcontent">
+            <h2>上传文件</h2>
+            <form id="fileForm" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="file">选择文件 (支持.csv, .excel):</label>
+                    <input type="file" id="file" name="file" required>
+                    <button type="button" onclick="submitFile()">上传文件</button>
+                </div>
+                 <div class="form-group full-width">
+                    <label for="queryText">查询内容:</label>
+                    <textarea id="queryText" name="query_text" rows="4" required></textarea>
+                </div>
+                <button type="button" onclick="submitQuery()">提交</button>
+                <button id="back-btn" >返回</button>
+            </form>
+        </div>
+  <!-- 新增知识库查询标签页 -->
+
+        <div id="result" class="result"></div>
+    </div>
+
+    <script>
+        function openTab(evt, tabName) {
+            var i, tabcontent, tablinks;
+            tabcontent = document.getElementsByClassName("tabcontent");
+            for (i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].style.display = "none";
+            }
+            tablinks = document.getElementsByClassName("tablinks");
+            for (i = 0; i < tablinks.length; i++) {
+                tablinks[i].className = tablinks[i].className.replace(" active", "");
+            }
+
+            document.getElementById(tabName).style.display = "block";
+            evt.currentTarget.className += " active";
+        }
+
+        // 默认打开第一个标签页
+        document.getElementsByClassName('tablinks')[0].click();
+
+        function displayResult(message, isSuccess) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.className = isSuccess ? 'result success' : 'result error';
+            resultDiv.innerHTML = message;
+        }
+
+        async function submitFile() {
+            const formData = new FormData(document.getElementById('fileForm'));
+
+            try {
+                const response = await fetch('/uploadcsvfile', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                if (result.status === 'success') {
+                    displayResult(`处理成功！地址：${result.filepath}`, true);
+                } else {
+                    displayResult(`处理失败: ${result.filepath}`, false);
+                }
+            } catch (error) {
+                displayResult(`请求错误: ${error.filepath}`, false);
+            }
+        }
+
+
+        async function submitQuery() {
+            const queryText = document.getElementById('queryText').value;
+
+            try {
+                const response = await fetch('/query_pandas', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        query_text: queryText,
+                    })
+                });
+
+                const result = await response.json();
+                if (result.status === 'success') {
+                    displayResult(`${result.info}`, true);
+                } else {
+                    displayResult(`处理失败: ${result.info}`, false);
+                }
+            } catch (error) {
+                displayQueryResult(`查询失败: ${error.message}`, false);
+            }
+        }
+
+
+        function displayQueryResult(message, isSuccess) {
+            const resultDiv = document.getElementById('queryResult');
+            resultDiv.className = isSuccess ? 'result success' : 'result error';
+            resultDiv.innerHTML = message;
+        }
+
+                // 添加返回按钮功能
+        document.getElementById('back-btn').addEventListener('click', function() {
+            window.location.href = '/profile';
+        });
+    </script>
+</body>
+</html>
