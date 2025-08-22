@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>知识库管理系统</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input[type="text"], input[type="number"], textarea, select {
+            width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px;
+        }
+        .tab { overflow: hidden; border: 1px solid #ccc; background-color: #f1f1f1; }
+        .tab button { background-color: inherit; float: left; border: none; outline: none; cursor: pointer; padding: 14px 16px; transition: 0.3s; }
+        .tab button:hover { background-color: #ddd; }
+        .tab button.active { background-color: #ccc; }
+        .tabcontent { display: none; padding: 20px; border: 1px solid #ccc; border-top: none; }
+        .result { margin-top: 20px; padding: 15px; border-radius: 5px; }
+        .success { background-color: #dff0d8; color: #3c763d; }
+        .error { background-color: #f2dede; color: #a94442; }
+         /* 新增样式 */
+        .query-form {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .query-form .full-width {
+            grid-column: span 2;
+        }
+        .result-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        .result-table th, .result-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        .result-table th {
+            background-color: #f2f2f2;
+        }
+        .score-cell {
+            text-align: right;
+        }
+                #back-btn {
+            background: white;
+            color: #4a5568;
+            border: 2px solid #e2e8f0;
+            min-width: 100px;
+        }
+
+        #back-btn:hover {
+            background: #f8fafc;
+            border-color: #cbd5e0;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>知识库管理系统</h1>
+
+        <div class="tab">
+            <button class="tablinks" onclick="openTab(event, 'fileTab')">文件上传</button>
+            <button class="tablinks" onclick="openTab(event, 'textTab')">文本输入</button>
+            <button class="tablinks" onclick="openTab(event, 'queryTab')">知识库查询</button>
+        </div>
+
+        <div id="fileTab" class="tabcontent">
+            <h2>上传文件</h2>
+            <form id="fileForm" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="file">选择文件 (支持.txt, .pdf, .docx, .md):</label>
+                    <input type="file" id="file" name="file" required>
+                </div>
+                <div class="form-group">
+                    <label for="fileChunkSize">块大小:</label>
+                    <input type="number" id="fileChunkSize" name="chunk_size" value="1000" min="100" max="5000">
+                </div>
+                <div class="form-group">
+                    <label for="fileChunkOverlap">块重叠:</label>
+                    <input type="number" id="fileChunkOverlap" name="chunk_overlap" value="200" min="0" max="1000">
+                </div>
+                <div class="form-group">
+                    <label for="fileUser">用户:</label>
+                    <input type="text" id="fileUser" name="user" placeholder="输入用户标识" value="{%role%}">
+                  </div>
+                <div class="form-group">
+                    <label for="fileKnowledgeBase">知识库名称:</label>
+                    <input type="text" id="fileKnowledgeBase" name="knowledge_base" placeholder="输入知识库名称" value="***知识库">
+                </div>
+                <div class="form-group">
+                    <label for="fileSeparators">分割字符串(逗号分隔):</label>
+                    <input type="text" id="fileSeparators" name="separators" placeholder="例如：逗号,句号,换行" value="----">
+                </div>
+                <button type="button" onclick="submitFile()">上传并处理</button>
+                <button id="back-btn" >返回</button>
+
+            </form>
+        </div>
+
+        <div id="textTab" class="tabcontent">
+            <h2>输入文本</h2>
+            <form id="textForm">
+                <div class="form-group">
+                    <label for="textContent">内容:</label>
+                    <textarea id="textContent" name="text" rows="10" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="source">来源:</label>
+                    <input type="text" id="source" name="source" value="用户输入">
+                </div>
+                <div class="form-group">
+                    <label for="textChunkSize">块大小:</label>
+                    <input type="number" id="textChunkSize" name="chunk_size" value="1000" min="100" max="5000">
+                </div>
+                <div class="form-group">
+                    <label for="textChunkOverlap">块重叠:</label>
+                    <input type="number" id="textChunkOverlap" name="chunk_overlap" value="200" min="0" max="1000">
+                </div>
+                <div class="form-group">
+                    <label for="textUser">用户:</label>
+                    <input type="text" id="textUser" name="user" placeholder="输入用户标识" value="anonymous">
+                </div>
+                <div class="form-group">
+                    <label for="textKnowledgeBase">知识库名称:</label>
+                    <input type="text" id="textKnowledgeBase" name="knowledge_base" placeholder="输入知识库名称" value="default">
+                </div>
+                <div class="form-group">
+                    <label for="textSeparators">分割字符串(逗号分隔):</label>
+                    <input type="text" id="textSeparators" name="separators" placeholder="例如：逗号,句号,换行">
+                </div>
+                <button type="button" onclick="submitText()">提交并处理</button>
+
+            </form>
+        </div>
+  <!-- 新增知识库查询标签页 -->
+         <div id="queryTab" class="tabcontent">
+            <h2>知识库查询</h2>
+            <form id="queryForm" class="query-form">
+                <div class="form-group full-width">
+                    <label for="kbSelect">知识库名称:</label>
+                    <select id="kbSelect" name="knowledge_base" required>
+                        <option value="" disabled selected>加载中...</option>
+                    </select>
+                </div>
+
+                <div class="form-group full-width">
+                    <label for="queryText">查询内容:</label>
+                    <textarea id="queryText" name="query_text" rows="4" required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="vectorTopK">向量检索记录数:</label>
+                    <input type="number" id="vectorTopK" name="top_k" min="1" max="20" value="5">
+                </div>
+
+                <div class="form-group">
+                    <label for="rerankTopK">重排返回记录数:</label>
+                    <input type="number" id="rerankTopK" name="rerank_top_k" min="1" max="10" value="3">
+                </div>
+
+                <div class="form-group full-width">
+                    <button type="button" onclick="submitQuery()">执行查询</button>
+                </div>
+            </form>
+
+            <div id="queryResult" class="result"></div>
+        </div>
+        <div id="result" class="result"></div>
+    </div>
+
+    <script>
+        function openTab(evt, tabName) {
+            var i, tabcontent, tablinks;
+            tabcontent = document.getElementsByClassName("tabcontent");
+            for (i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].style.display = "none";
+            }
+            tablinks = document.getElementsByClassName("tablinks");
+            for (i = 0; i < tablinks.length; i++) {
+                tablinks[i].className = tablinks[i].className.replace(" active", "");
+            }
+
+            document.getElementById(tabName).style.display = "block";
+            evt.currentTarget.className += " active";
+        }
+
+        // 默认打开第一个标签页
+        document.getElementsByClassName('tablinks')[0].click();
+
+        function displayResult(message, isSuccess) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.className = isSuccess ? 'result success' : 'result error';
+            resultDiv.innerHTML = message;
+        }
+
+        async function submitFile() {
+            const formData = new FormData(document.getElementById('fileForm'));
+            const chunkSize = document.getElementById('fileChunkSize').value;
+            const chunkOverlap = document.getElementById('fileChunkOverlap').value;
+
+            formData.append('chunk_size', chunkSize);
+            formData.append('chunk_overlap', chunkOverlap);
+            formData.append('user', document.getElementById('fileUser').value);
+            formData.append('knowledge_base', document.getElementById('fileKnowledgeBase').value);
+            formData.append('separators', document.getElementById('fileSeparators').value);
+
+            try {
+                const response = await fetch('/uploadragfile', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                if (result.status === 'success') {
+                    displayResult(`处理成功！<br>文档ID: ${result.document_id}<br>存储了 ${result.num_chunks} 个文本块`, true);
+                } else {
+                    displayResult(`处理失败: ${result.message}`, false);
+                }
+            } catch (error) {
+                displayResult(`请求错误: ${error.message}`, false);
+            }
+        }
+
+        async function submitText() {
+            const text = document.getElementById('textContent').value;
+            const source = document.getElementById('source').value;
+            const chunkSize = document.getElementById('textChunkSize').value;
+            const chunkOverlap = document.getElementById('textChunkOverlap').value;
+
+            try {
+                const response = await fetch('/process-text', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        text: text,
+                        source: source,
+                        chunk_size: parseInt(chunkSize),
+                        chunk_overlap: parseInt(chunkOverlap),
+                        user: document.getElementById('textUser').value,
+                        knowledge_base: document.getElementById('textKnowledgeBase').value,
+                        separators: document.getElementById('textSeparators').value
+                    })
+                });
+
+                const result = await response.json();
+                if (result.status === 'success') {
+                    displayResult(`处理成功！<br>文档ID: ${result.document_id}<br>存储了 ${result.num_chunks} 个文本块`, true);
+                } else {
+                    displayResult(`处理失败: ${result.message}`, false);
+                }
+            } catch (error) {
+                displayResult(`请求错误: ${error.message}`, false);
+            }
+        }
+
+        async function submitQuery() {
+            const kbSelect = document.getElementById('kbSelect');
+            const queryText = document.getElementById('queryText').value;
+            const vectorTopK = document.getElementById('vectorTopK').value;
+            const rerankTopK = document.getElementById('rerankTopK').value;
+
+            if (!kbSelect.value || !queryText) {
+                displayQueryResult('请选择知识库并输入查询内容', false);
+                return;
+            }
+
+            try {
+                const response = await fetch('/query_rag', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        knowledge_base_name: kbSelect.value,
+                        query_text: queryText,
+                        top_k: parseInt(vectorTopK),
+                        rerank_top_k: parseInt(rerankTopK)
+                    })
+                });
+
+                const result = await response.json();
+                displayQueryResults(result.results);
+
+            } catch (error) {
+                displayQueryResult(`查询失败: ${error.message}`, false);
+            }
+        }
+
+        function displayQueryResults(results) {
+            const resultDiv = document.getElementById('queryResult');
+
+            if (!results || results.length === 0) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = '未找到匹配结果';
+                return;
+            }
+
+            let html = `
+                <table class="result-table">
+                    <thead>
+                        <tr>
+                            <th>内容摘要</th>
+                            <th>来源</th>
+                            <th>相似度</th>
+                            <th>重排分数</th>
+                            <th>综合得分</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            results.forEach(item => {
+                // 截取内容前100个字符
+                const contentPreview = item.content.length > 200 ?
+                    item.content.substring(0, 200) + '...' : item.content;
+
+                // 获取元数据中的来源信息
+                const source = item.metadata?.source || '未知来源';
+
+                html += `
+                    <tr>
+                        <td>${contentPreview}</td>
+                        <td>${source}</td>
+                        <td class="score-cell">${item.similarity.toFixed(4)}</td>
+                        <td class="score-cell">${item.rerank_score.toFixed(4)}</td>
+                        <td class="score-cell">${item.combined_score.toFixed(4)}</td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                    </tbody>
+                </table>
+                <p>共找到 ${results.length} 条相关记录</p>
+            `;
+
+            resultDiv.className = 'result success';
+            resultDiv.innerHTML = html;
+        }
+
+        function displayQueryResult(message, isSuccess) {
+            const resultDiv = document.getElementById('queryResult');
+            resultDiv.className = isSuccess ? 'result success' : 'result error';
+            resultDiv.innerHTML = message;
+        }
+        async function loadKnowledgeBases() {
+            try {
+                const response = await fetch('/knowledge-bases');
+                const data = await response.json();
+                const kbSelect = document.getElementById('kbSelect');
+
+                kbSelect.innerHTML = '';
+                data.knowledge_bases.forEach(kb => {
+                    const option = document.createElement('option');
+                    option.value = kb;
+                    option.textContent = kb;
+                    kbSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('加载知识库列表失败:', error);
+                document.getElementById('kbSelect').innerHTML =
+                    '<option value="" disabled selected>加载失败，请重试</option>';
+            }
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+            loadKnowledgeBases();
+            // 默认打开第一个标签页
+            document.getElementsByClassName('tablinks')[0].click();
+        });
+                // 添加返回按钮功能
+        document.getElementById('back-btn').addEventListener('click', function() {
+            window.location.href = '/profile';
+        });
+    </script>
+</body>
+</html>
