@@ -1,16 +1,14 @@
 from langchain_mcp_adapters.client import MultiServerMCPClient
-from langchain.chat_models import init_chat_model
 from langgraph.graph import StateGraph, MessagesState, START, END
 from langgraph.prebuilt import ToolNode
-import asyncio
-import os
-from langchain_deepseek import ChatDeepSeek
 from fastapi import UploadFile
 from pathlib import Path
 import shutil
 from uuid import UUID
 from pydantic import BaseModel
 from llms.DeepSeekLLM import getDeepSeek
+from typing import AsyncGenerator, List, Dict, Optional
+from langchain_core.messages import AIMessageChunk
 
 class PandasQueryRequest(BaseModel):
     query_text: str
@@ -22,7 +20,7 @@ upload_dir = Path('./mcptools/tmp')
 upload_dir.mkdir(exist_ok=True, parents=True)
 
 # Initialize the model
-async def call_tools(inputstr :str , filepath :str):  # 创建异步主函数
+async def call_tools(inputstr: str, filepath: str) -> AsyncGenerator[str, None]:
     # Set up MCP client
     client = MultiServerMCPClient(
         {
@@ -42,7 +40,7 @@ async def call_tools(inputstr :str , filepath :str):  # 创建异步主函数
     tools = await client.get_tools()
 
     # Bind tools to model
-    model_with_tools = llm.bind_tools(tools)
+    model_with_tools = llm.bind_tools(tools,stream = True)
 
     # Create ToolNode
     tool_node = ToolNode(tools)
@@ -77,11 +75,17 @@ async def call_tools(inputstr :str , filepath :str):  # 创建异步主函数
 
     # Test the graph
 
-    pandas_response = await graph.ainvoke(
-        {"messages": [{"role": "user", "content": f"{inputstr}；待处理的文件路径:{filepath}"}]}
-    )
-
-    return pandas_response
+    inputs = {"messages": [{"role": "user", "content": f"{inputstr}；待处理的文件路径:{filepath}"}]}
+    async for event in graph.astream(inputs):
+        for node, output in event.items():
+            if node == "call_model":
+                # 提取流式内容
+                if isinstance(output, dict) and "messages" in output:
+                    last_msg = output["messages"][-1]
+                    # if isinstance(last_msg, AIMessageChunk):
+                    yield f"## 大模型调用: {last_msg.content}\n\n"
+            elif node == "tools":
+                yield f"## 工具调用: {output}\n\n"
 
 def save_upload_file(upload_file: UploadFile, sessionId: UUID) -> str:
     """保存上传的文件并返回文件路径"""
@@ -106,6 +110,5 @@ def save_upload_file(upload_file: UploadFile, sessionId: UUID) -> str:
 
 # 启动事件循环
 if __name__ == "__main__":
-
 
     print("Weather Response:")
