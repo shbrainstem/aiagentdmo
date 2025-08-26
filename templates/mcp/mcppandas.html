@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>MCP处理pandas</title>
+    <title>Pandas MCP 处理 </title>
     <style>
         body { font-family: Arial, sans-serif; margin: 40px; }
         .container { max-width: 800px; margin: 0 auto; }
@@ -18,7 +18,9 @@
         .result { margin-top: 20px; padding: 15px; border-radius: 5px; }
         .success { background-color: #dff0d8; color: #3c763d; }
         .error { background-color: #f2dede; color: #a94442; }
-         /* 新增样式 */
+        .info { background-color: #d9edf7; color: #31708f; }
+
+        /* 新增样式 */
         .query-form {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -43,24 +45,74 @@
         .score-cell {
             text-align: right;
         }
-                #back-btn {
+        #back-btn {
             background: white;
             color: #4a5568;
             border: 2px solid #e2e8f0;
             min-width: 100px;
         }
-
+        #submit-btn {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        #submit-btn:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        #submit-btn:hover:not(:disabled) {
+            background-color: #45a049;
+        }
         #back-btn:hover {
             background: #f8fafc;
             border-color: #cbd5e0;
             transform: translateY(-2px);
             box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
         }
+        .result {
+            white-space: pre-wrap;   /* 关键属性 */
+            word-break: break-word;
+            line-height: 1.5;
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .file-status {
+            padding: 8px;
+            margin-top: 10px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .file-uploaded {
+            background-color: #dff0d8;
+            color: #3c763d;
+        }
+        .file-not-uploaded {
+            background-color: #f2dede;
+            color: #a94442;
+        }
+        /* 添加响应式断点 */
+        @media (max-width: 600px) {
+            .result {
+                font-size: 14px;
+                padding: 10px;
+            }
+            .query-form {
+                grid-template-columns: 1fr;
+            }
+            .query-form .full-width {
+                grid-column: span 1;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>MCP Pandas</h1>
+        <h1>MCP Pandas 数据分析工具</h1>
 
         <div class="tab">
             <button class="tablinks" onclick="openTab(event, 'fileTab')">文件上传</button>
@@ -71,23 +123,26 @@
             <form id="fileForm" enctype="multipart/form-data">
                 <div class="form-group">
                     <label for="file">选择文件 (支持.csv, .excel):</label>
-                    <input type="file" id="file" name="file" required>
+                    <input type="file" id="file" name="file" accept=".csv,.xlsx,.xls" required>
                     <button type="button" onclick="submitFile()">上传文件</button>
+                    <div id="fileStatus" class="file-status file-not-uploaded">请先上传文件</div>
                 </div>
                  <div class="form-group full-width">
                     <label for="queryText">查询内容:</label>
-                    <textarea id="queryText" name="query_text" rows="4" required></textarea>
+                    <textarea id="queryText" name="query_text" rows="4" placeholder="例如：计算销售总额，或找出销量最高的产品" required></textarea>
                 </div>
-                <button type="button" onclick="submitQuery()">提交</button>
-                <button id="back-btn" >返回</button>
+                <button type="button" id="submit-btn" onclick="submitQuery()" disabled>提交分析</button>
+                <button type="button" id="back-btn">返回主页</button>
             </form>
         </div>
-  <!-- 新增知识库查询标签页 -->
 
-        <div id="result" class="result"></div>
+        <div id="result" class="result info">等待查询...请先上传文件并输入查询内容</div>
     </div>
 
     <script>
+        // 全局变量跟踪文件上传状态
+        let isFileUploaded = false;
+
         function openTab(evt, tabName) {
             var i, tabcontent, tablinks;
             tabcontent = document.getElementsByClassName("tabcontent");
@@ -106,16 +161,44 @@
         // 默认打开第一个标签页
         document.getElementsByClassName('tablinks')[0].click();
 
+        // 更新文件状态显示
+        function updateFileStatus(isUploaded, message = '') {
+            const fileStatus = document.getElementById('fileStatus');
+            const submitBtn = document.getElementById('submit-btn');
+            isFileUploaded = isUploaded;
+
+            if (isUploaded) {
+                fileStatus.className = 'file-status file-uploaded';
+                fileStatus.textContent = message || '文件已成功上传！';
+                submitBtn.disabled = false;
+            } else {
+                fileStatus.className = 'file-status file-not-uploaded';
+                fileStatus.textContent = message || '请先上传文件';
+                submitBtn.disabled = true;
+            }
+        }
+
+        // 显示结果
         function displayResult(message, isSuccess) {
             const resultDiv = document.getElementById('result');
             resultDiv.className = isSuccess ? 'result success' : 'result error';
-            resultDiv.innerHTML = message;
+            resultDiv.textContent = message;
         }
 
+        // 上传文件
         async function submitFile() {
-            const formData = new FormData(document.getElementById('fileForm'));
+            const fileInput = document.getElementById('file');
+            if (!fileInput.files || fileInput.files.length === 0) {
+                updateFileStatus(false, '请选择文件');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
 
             try {
+                updateFileStatus(false, '上传中...');
+
                 const response = await fetch('/uploadcsvfile', {
                     method: 'POST',
                     body: formData
@@ -123,52 +206,73 @@
 
                 const result = await response.json();
                 if (result.status === 'success') {
-                    displayResult(`处理成功！地址：${result.filepath}`, true);
+                    updateFileStatus(true, `文件上传成功！`);
+                    displayResult('文件已准备好，请输入查询内容并点击"提交分析"', true);
                 } else {
-                    displayResult(`处理失败: ${result.filepath}`, false);
+                    updateFileStatus(false, `上传失败: ${result.filepath}`);
+                    displayResult(`文件上传失败: ${result.filepath}`, false);
                 }
             } catch (error) {
-                displayResult(`请求错误: ${error.filepath}`, false);
+                updateFileStatus(false, '上传错误');
+                displayResult(`请求错误: ${error.message}`, false);
             }
         }
 
-
+        // 提交查询
         async function submitQuery() {
+            if (!isFileUploaded) {
+                displayResult('请先上传文件', false);
+                return;
+            }
+
             const queryText = document.getElementById('queryText').value;
+            if (!queryText.trim()) {
+                displayResult('请输入查询内容', false);
+                return;
+            }
+
+            const resultDiv = document.getElementById('result');
+            resultDiv.textContent = '处理中...';  // 清空之前的结果
+            resultDiv.className = 'result info';
 
             try {
                 const response = await fetch('/query_pandas', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        query_text: queryText,
-                    })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query_text: queryText })
                 });
 
-                const result = await response.json();
-                if (result.status === 'success') {
-                    displayResult(`${result.info}`, true);
-                } else {
-                    displayResult(`处理失败: ${result.info}`, false);
+                // 流式读取响应
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let resultText = '';
+
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value, { stream: true });
+                    resultText += chunk;
+
+                    // 保留原始换行符并自动滚动
+                    resultDiv.textContent = resultText;
+                    resultDiv.scrollTop = resultDiv.scrollHeight;
                 }
+
+                resultDiv.className = 'result success';
             } catch (error) {
-                displayQueryResult(`查询失败: ${error.message}`, false);
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `查询失败: ${error.message}`;
             }
         }
 
-
-        function displayQueryResult(message, isSuccess) {
-            const resultDiv = document.getElementById('queryResult');
-            resultDiv.className = isSuccess ? 'result success' : 'result error';
-            resultDiv.innerHTML = message;
-        }
-
-                // 添加返回按钮功能
+        // 添加返回按钮功能
         document.getElementById('back-btn').addEventListener('click', function() {
             window.location.href = '/profile';
         });
+
+        // 初始化页面状态
+        updateFileStatus(false);
     </script>
 </body>
 </html>
