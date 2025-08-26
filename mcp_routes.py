@@ -36,12 +36,17 @@ def create_mcp_router(templates, get_session_data, cookie, backend):
 
     @router.post("/query_pandas")
     async def query_rag_list(request: PandasQueryRequest,
-            session_data: SessionData = Depends(get_session_data)):
+                             session_data: SessionData = Depends(get_session_data)):
         try:
-            info = await call_tools(request.query_text, session_data.tmpfilepath)
-            result_info = info['messages'][-1].content
-            result = {"info": result_info, "status": 'success'}
-            return result
+            # 返回流式响应
+            return StreamingResponse(
+                call_tools(request.query_text, session_data.tmpfilepath),
+                media_type="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive"
+                }
+            )
         except Exception as e :
             import traceback
             traceback.print_exc()
@@ -51,16 +56,16 @@ def create_mcp_router(templates, get_session_data, cookie, backend):
             if session_data.tmpfilepath and os.path.exists(session_data.tmpfilepath):
                 try:
                     # 获取文件所在目录路径
-                    dir_path = os.path.dirname(session_data.tmpfilepath)
-                    # 删除临时文件
-                    os.remove(session_data.tmpfilepath)
+                    # dir_path = os.path.dirname(session_data.tmpfilepath)
+                    # # 删除临时文件
+                    # os.remove(session_data.tmpfilepath)
                     print(f"已删除临时文件: {session_data.tmpfilepath}")
                     # 尝试删除所在目录（如果目录为空）
-                    if os.path.exists(dir_path) and not os.listdir(dir_path):
-                        os.rmdir(dir_path)
-                        print(f"已删除空目录: {dir_path}")
-                    elif os.path.exists(dir_path):
-                        print(f"目录非空，保留目录: {dir_path}")
+                    # if os.path.exists(dir_path) and not os.listdir(dir_path):
+                    #     os.rmdir(dir_path)
+                    #     print(f"已删除空目录: {dir_path}")
+                    # elif os.path.exists(dir_path):
+                    #     print(f"目录非空，保留目录: {dir_path}")
                 except Exception as e:
                     print(f"操作过程中出错: {e}")
 
